@@ -6,14 +6,29 @@ import { QuickCapture } from './QuickCapture';
 import { IntentList } from './IntentList';
 import { CategoryFilter } from './CategoryFilter';
 import { SidePanel } from './SidePanel';
-import type { IntentWithCategory } from '@/types/database';
+import { TagManager } from './TagManager';
+import type { IntentWithTags, TagWithCategory } from '@/types/database';
 
 export function IntentLogger() {
-  const { intents, categories, isLoading, error, addIntent, updateIntent, deleteIntent, fetchIntents, createCategory, updateCategory } =
-    useIntents();
+  const {
+    intents,
+    categories,
+    tagCategories,
+    isLoading,
+    error,
+    addIntent,
+    updateIntent,
+    deleteIntent,
+    fetchIntents,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    createTagCategory
+  } = useIntents();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedIntent, setSelectedIntent] = useState<IntentWithCategory | null>(null);
+  const [selectedIntent, setSelectedIntent] = useState<IntentWithTags | null>(null);
+  const [showTagManager, setShowTagManager] = useState(false);
 
   // Keep selectedIntent in sync with intents state
   useEffect(() => {
@@ -39,6 +54,9 @@ export function IntentLogger() {
     fetchIntents(categoryId);
   };
 
+  // Cast categories to TagWithCategory[] for components that need it
+  const tagsWithCategory = categories as unknown as import('@/types/database').TagWithCategory[];
+
   return (
     <div>
       {error && (
@@ -56,7 +74,18 @@ export function IntentLogger() {
         </div>
       )}
 
-      <QuickCapture onSubmit={handleAddIntent} isLoading={isSubmitting} />
+      <div className="flex items-center justify-between mb-4">
+        <QuickCapture onSubmit={handleAddIntent} isLoading={isSubmitting} />
+        <button
+          onClick={() => setShowTagManager(true)}
+          className="ml-4 p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+          title="Manage Tags"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+        </button>
+      </div>
 
       {categories.length > 0 && (
         <CategoryFilter
@@ -68,7 +97,8 @@ export function IntentLogger() {
 
       <IntentList
         intents={intents}
-        categories={categories}
+        categories={tagsWithCategory}
+        tagCategories={tagCategories}
         onUpdate={updateIntent}
         onOpenPanel={setSelectedIntent}
         onCreateCategory={createCategory}
@@ -78,13 +108,26 @@ export function IntentLogger() {
 
       <SidePanel
         intent={selectedIntent}
-        categories={categories}
+        categories={tagsWithCategory}
+        tagCategories={tagCategories}
         onClose={() => setSelectedIntent(null)}
         onUpdate={updateIntent}
         onDelete={deleteIntent}
         onCreateCategory={createCategory}
         onUpdateCategory={updateCategory}
       />
+
+      {showTagManager && (
+        <TagManager
+          tags={tagsWithCategory}
+          tagCategories={tagCategories}
+          onCreateTag={createCategory}
+          onCreateTagCategory={createTagCategory}
+          onUpdateTag={updateCategory}
+          onDeleteTag={deleteCategory}
+          onClose={() => setShowTagManager(false)}
+        />
+      )}
     </div>
   );
 }

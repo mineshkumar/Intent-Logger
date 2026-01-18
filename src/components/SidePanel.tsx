@@ -4,19 +4,20 @@ import { useState, useEffect, useRef } from 'react';
 import { TAG_COLORS } from '@/lib/colors';
 import { TagInput } from './TagInput';
 import { DurationInput, formatDuration } from './DurationInput';
-import type { Category, IntentWithCategory, IntentUpdate } from '@/types/database';
+import type { Tag, TagCategory, TagWithCategory, IntentWithTags, IntentUpdate } from '@/types/database';
 
 interface SidePanelProps {
-  intent: IntentWithCategory | null;
-  categories: Category[];
+  intent: IntentWithTags | null;
+  categories: TagWithCategory[];
+  tagCategories?: TagCategory[];
   onClose: () => void;
   onUpdate: (id: string, updates: IntentUpdate) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onCreateCategory: (name: string) => Promise<Category | null>;
+  onCreateCategory: (name: string) => Promise<Tag | null>;
   onUpdateCategory: (id: string, updates: { color?: string }) => Promise<void>;
 }
 
-export function SidePanel({ intent, categories, onClose, onUpdate, onDelete, onCreateCategory, onUpdateCategory }: SidePanelProps) {
+export function SidePanel({ intent, categories, tagCategories, onClose, onUpdate, onDelete, onCreateCategory, onUpdateCategory }: SidePanelProps) {
   const [description, setDescription] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -135,6 +136,7 @@ export function SidePanel({ intent, categories, onClose, onUpdate, onDelete, onC
             <div className="flex items-center gap-3">
               <TagInput
                 categories={categories}
+                tagCategories={tagCategories}
                 selectedCategoryIds={intent.categories.map(c => c.id)}
                 onChange={(ids) => onUpdate(intent.id, { category_ids: ids })}
                 onCreate={onCreateCategory}

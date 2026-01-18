@@ -3,20 +3,49 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import { getNextColor } from '@/lib/colors';
-import type { Category, Intent, IntentWithCategory, IntentInsert, IntentUpdate } from '@/types/database';
+import type { Tag, TagCategory, TagWithCategory, Intent, IntentWithTags, IntentInsert, IntentUpdate } from '@/types/database';
+
+// Legacy alias for backwards compatibility
+type Category = Tag;
+type IntentWithCategory = IntentWithTags;
 
 export function useIntents() {
-  const [intents, setIntents] = useState<IntentWithCategory[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [intents, setIntents] = useState<IntentWithTags[]>([]);
+  const [categories, setCategories] = useState<Tag[]>([]);
+  const [tagCategories, setTagCategories] = useState<TagCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchTagCategories = useCallback(async () => {
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('tag_categories')
+        .select('*')
+        .order('sort_order');
+
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      if (data) {
+        setTagCategories(data as unknown as TagCategory[]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch tag categories');
+    }
+  }, []);
 
   const fetchCategories = useCallback(async () => {
     try {
       const supabase = getSupabase();
       const { data, error } = await supabase
         .from('categories')
-        .select('*')
+        .select(`
+          *,
+          tag_category:tag_categories(*)
+        `)
         .order('name');
 
       if (error) {
@@ -25,7 +54,7 @@ export function useIntents() {
       }
 
       if (data) {
-        setCategories(data as unknown as Category[]);
+        setCategories(data as unknown as Tag[]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch categories');
@@ -180,14 +209,45 @@ export function useIntents() {
     setIntents((prev: IntentWithCategory[]) => prev.filter((intent) => intent.id !== id));
   }, []);
 
-  const createCategory = useCallback(async (name: string): Promise<Category | null> => {
+  const createCategory = useCallback(async (name: string, tagCategoryId?: string | null): Promise<Tag | null> => {
     const supabase = getSupabase();
     const usedColors = categories.map(c => c.color);
     const color = getNextColor(usedColors);
 
+    const insertData: { name: string; color: string; tag_category_id?: string | null } = { name, color };
+    if (tagCategoryId !== undefined) {
+      insertData.tag_category_id = tagCategoryId;
+    }
+
     const { data, error } = await supabase
       .from('categories')
-      .insert({ name, color } as never)
+      .insert(insertData as never)
+      .select(`
+        *,
+        tag_category:tag_categories(*)
+      `)
+      .single();
+
+    if (error) {
+      setError(error.message);
+      return null;
+    }
+
+    if (data) {
+      const newCategory = data as unknown as Tag;
+      setCategories((prev) => [...prev, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
+      return newCategory;
+    }
+    return null;
+  }, [categories]);
+
+  const createTagCategory = useCallback(async (name: string, icon?: string): Promise<TagCategory | null> => {
+    const supabase = getSupabase();
+    const maxOrder = tagCategories.reduce((max, tc) => Math.max(max, tc.sort_order), 0);
+
+    const { data, error } = await supabase
+      .from('tag_categories')
+      .insert({ name, icon: icon || null, sort_order: maxOrder + 1 } as never)
       .select('*')
       .single();
 
@@ -197,20 +257,23 @@ export function useIntents() {
     }
 
     if (data) {
-      const newCategory = data as unknown as Category;
-      setCategories((prev) => [...prev, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
-      return newCategory;
+      const newTagCategory = data as unknown as TagCategory;
+      setTagCategories((prev) => [...prev, newTagCategory].sort((a, b) => a.sort_order - b.sort_order));
+      return newTagCategory;
     }
     return null;
-  }, [categories]);
+  }, [tagCategories]);
 
-  const updateCategory = useCallback(async (id: string, updates: { name?: string; color?: string }) => {
+  const updateCategory = useCallback(async (id: string, updates: { name?: string; color?: string; tag_category_id?: string | null }) => {
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('categories')
       .update(updates as never)
       .eq('id', id)
-      .select('*')
+      .select(`
+        *,
+        tag_category:tag_categories(*)
+      `)
       .single();
 
     if (error) {
@@ -219,7 +282,7 @@ export function useIntents() {
     }
 
     if (data) {
-      const updatedCategory = data as unknown as Category;
+      const updatedCategory = data as unknown as Tag;
       setCategories((prev) =>
         prev.map((cat) => (cat.id === id ? updatedCategory : cat))
       );
@@ -228,14 +291,30 @@ export function useIntents() {
     }
   }, [fetchIntents]);
 
+  const deleteCategory = useCallback(async (id: string) => {
+    const supabase = getSupabase();
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+
+    if (error) {
+      setError(error.message);
+      throw error;
+    }
+
+    setCategories((prev) => prev.filter((cat) => cat.id !== id));
+    // Refresh intents to remove deleted tag references
+    fetchIntents();
+  }, [fetchIntents]);
+
   useEffect(() => {
+    fetchTagCategories();
     fetchCategories();
     fetchIntents();
-  }, [fetchCategories, fetchIntents]);
+  }, [fetchTagCategories, fetchCategories, fetchIntents]);
 
   return {
     intents,
     categories,
+    tagCategories,
     isLoading,
     error,
     addIntent,
@@ -244,5 +323,8 @@ export function useIntents() {
     fetchIntents,
     createCategory,
     updateCategory,
+    deleteCategory,
+    createTagCategory,
+    fetchTagCategories,
   };
 }

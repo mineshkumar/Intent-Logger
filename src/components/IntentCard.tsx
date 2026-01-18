@@ -3,18 +3,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { TagInput } from './TagInput';
 import { DurationInput, formatDurationShort } from './DurationInput';
-import type { Category, IntentWithCategory, IntentUpdate } from '@/types/database';
+import type { Tag, TagCategory, TagWithCategory, IntentWithTags, IntentUpdate } from '@/types/database';
 
 interface IntentCardProps {
-  intent: IntentWithCategory;
-  categories: Category[];
+  intent: IntentWithTags;
+  categories: TagWithCategory[];
+  tagCategories?: TagCategory[];
   onUpdate: (id: string, updates: IntentUpdate) => Promise<void>;
-  onOpenPanel: (intent: IntentWithCategory) => void;
-  onCreateCategory: (name: string) => Promise<Category | null>;
+  onOpenPanel: (intent: IntentWithTags) => void;
+  onCreateCategory: (name: string) => Promise<Tag | null>;
   onDelete: (id: string) => Promise<void>;
 }
 
-export function IntentCard({ intent, categories, onUpdate, onOpenPanel, onCreateCategory, onDelete }: IntentCardProps) {
+export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpenPanel, onCreateCategory, onDelete }: IntentCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(intent.title);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -87,50 +88,54 @@ export function IntentCard({ intent, categories, onUpdate, onOpenPanel, onCreate
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           {/* Tag, duration, and timestamp row */}
-          <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[28px]">
-            <div className="flex items-center gap-2 flex-wrap">
-              <TagInput
-                categories={categories}
-                selectedCategoryIds={intent.categories.map(c => c.id)}
-                onChange={(ids) => onUpdate(intent.id, { category_ids: ids })}
-                onCreate={onCreateCategory}
-              />
-
-              <DurationInput
-                value={intent.duration_minutes}
-                onChange={handleDurationChange}
-                compact
-              />
+          {/* Title and Date Row */}
+          <div className="flex items-start justify-between gap-4 mb-1">
+            <div className="flex-1 min-w-0">
+              {/* Title - inline editable */}
+              {isEditingTitle ? (
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  onBlur={handleTitleSave}
+                  onKeyDown={handleTitleKeyDown}
+                  className="w-full text-lg font-semibold text-gray-900 bg-transparent border-b-2 border-indigo-500 focus:outline-none py-0.5"
+                />
+              ) : (
+                <h3
+                  onClick={() => setIsEditingTitle(true)}
+                  className="text-lg font-semibold text-gray-900 cursor-text hover:text-indigo-600 transition-colors"
+                  title="Click to edit"
+                >
+                  {intent.title}
+                </h3>
+              )}
             </div>
-
-            <span className="text-xs text-gray-400 whitespace-nowrap ml-2 flex-shrink-0">{formattedDate}</span>
+            <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0 mt-1.5">{formattedDate}</span>
           </div>
-
-          {/* Title - inline editable */}
-          {isEditingTitle ? (
-            <input
-              ref={titleInputRef}
-              type="text"
-              value={editedTitle}
-              onChange={(e) => setEditedTitle(e.target.value)}
-              onBlur={handleTitleSave}
-              onKeyDown={handleTitleKeyDown}
-              className="w-full text-base font-medium text-gray-900 bg-transparent border-b-2 border-indigo-500 focus:outline-none py-0.5"
-            />
-          ) : (
-            <h3
-              onClick={() => setIsEditingTitle(true)}
-              className="text-base font-medium text-gray-900 cursor-text hover:text-indigo-600 transition-colors"
-              title="Click to edit"
-            >
-              {intent.title}
-            </h3>
-          )}
 
           {/* Description preview */}
           {intent.description && (
-            <p className="text-gray-500 text-sm mt-1 line-clamp-1">{intent.description}</p>
+            <p className="text-gray-500 text-sm mb-3 line-clamp-1">{intent.description}</p>
           )}
+
+          {/* Tag and duration row (moved to bottom) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <TagInput
+              categories={categories}
+              tagCategories={tagCategories}
+              selectedCategoryIds={intent.categories.map(c => c.id)}
+              onChange={(ids) => onUpdate(intent.id, { category_ids: ids })}
+              onCreate={onCreateCategory}
+            />
+
+            <DurationInput
+              value={intent.duration_minutes}
+              onChange={handleDurationChange}
+              compact
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

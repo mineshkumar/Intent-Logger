@@ -1,19 +1,20 @@
 'use client';
 
 import { IntentCard } from './IntentCard';
-import type { Category, IntentWithCategory, IntentUpdate } from '@/types/database';
+import type { Tag, TagCategory, TagWithCategory, IntentWithTags, IntentUpdate } from '@/types/database';
 
 interface IntentListProps {
-  intents: IntentWithCategory[];
-  categories: Category[];
+  intents: IntentWithTags[];
+  categories: TagWithCategory[];
+  tagCategories?: TagCategory[];
   onUpdate: (id: string, updates: IntentUpdate) => Promise<void>;
-  onOpenPanel: (intent: IntentWithCategory) => void;
-  onCreateCategory: (name: string) => Promise<Category | null>;
+  onOpenPanel: (intent: IntentWithTags) => void;
+  onCreateCategory: (name: string) => Promise<Tag | null>;
   onDelete: (id: string) => Promise<void>;
   isLoading?: boolean;
 }
 
-export function IntentList({ intents, categories, onUpdate, onOpenPanel, onCreateCategory, onDelete, isLoading }: IntentListProps) {
+export function IntentList({ intents, categories, tagCategories, onUpdate, onOpenPanel, onCreateCategory, onDelete, isLoading }: IntentListProps) {
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -61,6 +62,7 @@ export function IntentList({ intents, categories, onUpdate, onOpenPanel, onCreat
           key={intent.id}
           intent={intent}
           categories={categories}
+          tagCategories={tagCategories}
           onUpdate={onUpdate}
           onOpenPanel={onOpenPanel}
           onCreateCategory={onCreateCategory}

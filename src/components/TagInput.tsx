@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import type { Category } from '@/types/database';
+import type { Tag, TagCategory, TagWithCategory } from '@/types/database';
 
 interface TagInputProps {
-  categories: Category[];
+  categories: TagWithCategory[];
+  tagCategories?: TagCategory[];
   selectedCategoryIds: string[];
   onChange: (categoryIds: string[]) => void;
-  onCreate: (name: string) => Promise<Category | null>;
+  onCreate: (name: string) => Promise<Tag | null>;
 }
 
-export function TagInput({ categories, selectedCategoryIds, onChange, onCreate }: TagInputProps) {
+export function TagInput({ categories, tagCategories = [], selectedCategoryIds, onChange, onCreate }: TagInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -26,6 +27,14 @@ export function TagInput({ categories, selectedCategoryIds, onChange, onCreate }
   const showCreateOption = inputValue && !categories.some(
     c => c.name.toLowerCase() === inputValue.toLowerCase()
   );
+
+  // Group filtered categories by tag category
+  const groupedCategories = tagCategories.map(tc => ({
+    tagCategory: tc,
+    tags: filteredCategories.filter(c => c.tag_category_id === tc.id)
+  })).filter(g => g.tags.length > 0);
+
+  const uncategorizedTags = filteredCategories.filter(c => !c.tag_category_id);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -125,24 +134,61 @@ export function TagInput({ categories, selectedCategoryIds, onChange, onCreate }
 
         {isOpen && (
           <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 max-h-60 overflow-y-auto">
-            {filteredCategories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => handleToggle(cat.id)}
-                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 justify-between group"
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  <span className="truncate">{cat.name}</span>
+            {/* Grouped tags by category */}
+            {groupedCategories.map(({ tagCategory, tags }) => (
+              <div key={tagCategory.id}>
+                <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50">
+                  {tagCategory.icon} {tagCategory.name}
                 </div>
-                {selectedCategoryIds.includes(cat.id) && (
-                  <span className="text-indigo-600 text-xs font-bold">✓</span>
-                )}
-              </button>
+                {tags.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleToggle(cat.id)}
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 justify-between group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                      <span className="truncate">{cat.name}</span>
+                    </div>
+                    {selectedCategoryIds.includes(cat.id) && (
+                      <span className="text-indigo-600 text-xs font-bold">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
             ))}
+
+            {/* Uncategorized tags */}
+            {uncategorizedTags.length > 0 && (
+              <div>
+                {groupedCategories.length > 0 && (
+                  <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50">
+                    Other
+                  </div>
+                )}
+                {uncategorizedTags.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleToggle(cat.id)}
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 justify-between group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                      <span className="truncate">{cat.name}</span>
+                    </div>
+                    {selectedCategoryIds.includes(cat.id) && (
+                      <span className="text-indigo-600 text-xs font-bold">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {showCreateOption && (
               <button
