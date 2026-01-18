@@ -102,7 +102,7 @@ export interface IntentWithCategory extends Intent {
   categories: Category[];
 }
 
-export type IntentInsert = Omit<Intent, 'id' | 'created_at' | 'updated_at'> & {
+export type IntentInsert = Omit<Database['public']['Tables']['intents']['Insert'], 'category_id'> & {
   category_ids?: string[];
 };
 

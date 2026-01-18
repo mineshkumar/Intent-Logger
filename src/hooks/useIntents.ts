@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import { getNextColor } from '@/lib/colors';
-import type { Category, IntentWithCategory, IntentInsert, IntentUpdate } from '@/types/database';
+import type { Category, Intent, IntentWithCategory, IntentInsert, IntentUpdate } from '@/types/database';
 
 export function useIntents() {
   const [intents, setIntents] = useState<IntentWithCategory[]>([]);
@@ -105,7 +105,7 @@ export function useIntents() {
     let attachedCategories: Category[] = [];
     if (intent.category_ids && intent.category_ids.length > 0) {
       const tagInserts = intent.category_ids.map(catId => ({
-        intent_id: newIntent.id,
+        intent_id: (newIntent as Intent).id,
         category_id: catId
       }));
 
