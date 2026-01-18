@@ -17,7 +17,7 @@ export function DayView({ intents, onOpenPanel }: DayViewProps) {
         const todaysList = intents
             .filter(intent => {
                 const date = new Date(intent.created_at);
-                return date >= today;
+                return date.toDateString() === today.toDateString();
             })
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
