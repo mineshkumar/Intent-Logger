@@ -38,18 +38,7 @@ export function useIntents() {
 
     try {
       const supabase = getSupabase();
-      let query = supabase
-        .from('intents')
-        .select(`
-          *,
-          intent_tags!inner (
-            category_id,
-            categories (
-              *
-            )
-          )
-        `)
-        .order('created_at', { ascending: false });
+
 
       // Note: We are fetching all intents and their tags. 
       // If filtering by categoryId is needed at DB level, it requires more complex query or different approach
