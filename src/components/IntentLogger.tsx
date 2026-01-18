@@ -39,10 +39,6 @@ export function IntentLogger() {
     fetchIntents(categoryId);
   };
 
-  const filteredIntents = selectedCategoryId
-    ? intents.filter((intent) => intent.category_id === selectedCategoryId)
-    : intents;
-
   return (
     <div>
       {error && (
@@ -62,7 +58,7 @@ export function IntentLogger() {
 
       <QuickCapture onSubmit={handleAddIntent} isLoading={isSubmitting} />
 
-      {intents.length > 0 && (
+      {categories.length > 0 && (
         <CategoryFilter
           categories={categories}
           selectedCategoryId={selectedCategoryId}
@@ -71,7 +67,7 @@ export function IntentLogger() {
       )}
 
       <IntentList
-        intents={filteredIntents}
+        intents={intents}
         categories={categories}
         onUpdate={updateIntent}
         onOpenPanel={setSelectedIntent}

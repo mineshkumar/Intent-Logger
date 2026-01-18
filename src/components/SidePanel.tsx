@@ -84,25 +84,16 @@ export function SidePanel({ intent, categories, onClose, onUpdate, onDelete, onC
     }
   };
 
-  const handleCategorySelect = async (categoryId: string | null) => {
-    await onUpdate(intent.id, { category_id: categoryId });
-  };
-
   const handleDurationChange = async (minutes: number | null) => {
     await onUpdate(intent.id, { duration_minutes: minutes });
-  };
-
-  const handleColorChange = async (color: string) => {
-    if (intent.categories) {
-      await onUpdateCategory(intent.categories.id, { color });
-      setShowColorPicker(false);
-    }
   };
 
   const handleDelete = async () => {
     await onDelete(intent.id);
     onClose();
   };
+
+
 
   const formattedDate = new Date(intent.created_at).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -139,47 +130,15 @@ export function SidePanel({ intent, categories, onClose, onUpdate, onDelete, onC
           {/* Tag section */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tag
+              Tags
             </label>
             <div className="flex items-center gap-3">
               <TagInput
                 categories={categories}
-                selectedCategoryId={intent.category_id}
-                onSelect={handleCategorySelect}
+                selectedCategoryIds={intent.categories.map(c => c.id)}
+                onChange={(ids) => onUpdate(intent.id, { category_ids: ids })}
                 onCreate={onCreateCategory}
               />
-
-              {/* Color picker for current tag */}
-              {intent.categories && (
-                <div className="relative" ref={colorPickerRef}>
-                  <button
-                    onClick={() => setShowColorPicker(!showColorPicker)}
-                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700"
-                  >
-                    <span
-                      className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
-                      style={{ backgroundColor: intent.categories.color }}
-                    />
-                    Change color
-                  </button>
-
-                  {showColorPicker && (
-                    <div className="absolute top-full left-0 mt-2 p-2 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
-                      <div className="grid grid-cols-6 gap-1">
-                        {TAG_COLORS.map((color) => (
-                          <button
-                            key={color}
-                            onClick={() => handleColorChange(color)}
-                            className={`w-6 h-6 rounded-full transition-transform hover:scale-110 ${intent.categories?.color === color ? 'ring-2 ring-offset-1 ring-gray-400' : ''
-                              }`}
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 

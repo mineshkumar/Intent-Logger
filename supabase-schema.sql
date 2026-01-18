@@ -49,9 +49,27 @@ INSERT INTO categories (name, color) VALUES
   ('Health', '#ef4444')
 ON CONFLICT (name) DO NOTHING;
 
--- Enable Row Level Security (optional but recommended)
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE intents ENABLE ROW LEVEL SECURITY;
+-- Create intent_tags junction table
+CREATE TABLE IF NOT EXISTS intent_tags (
+  intent_id UUID REFERENCES intents(id) ON DELETE CASCADE,
+  category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+  PRIMARY KEY (intent_id, category_id)
+);
+
+-- Migrate existing data (if any)
+INSERT INTO intent_tags (intent_id, category_id)
+SELECT id, category_id FROM intents WHERE category_id IS NOT NULL
+ON CONFLICT DO NOTHING;
+
+-- Drop category_id from intents (optional, safely ignore for now or drop)
+-- ALTER TABLE intents DROP COLUMN category_id;
+
+-- Enable RLS on new table
+ALTER TABLE intent_tags ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for intent_tags
+CREATE POLICY "Allow all operations on intent_tags" ON intent_tags
+  FOR ALL USING (true) WITH CHECK (true);
 
 -- Create policies to allow all operations (since no auth)
 CREATE POLICY "Allow all operations on categories" ON categories

@@ -27,7 +27,6 @@ export interface Database {
           id: string;
           title: string;
           description: string | null;
-          category_id: string | null;
           duration_minutes: number | null;
           created_at: string;
           updated_at: string;
@@ -59,6 +58,34 @@ export interface Database {
           }
         ];
       };
+      intent_tags: {
+        Row: {
+          intent_id: string;
+          category_id: string;
+        };
+        Insert: {
+          intent_id: string;
+          category_id: string;
+        };
+        Update: {
+          intent_id?: string;
+          category_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'intent_tags_category_id_fkey';
+            columns: ['category_id'];
+            referencedRelation: 'categories';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'intent_tags_intent_id_fkey';
+            columns: ['intent_id'];
+            referencedRelation: 'intents';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -67,12 +94,17 @@ export interface Database {
   };
 }
 
+
 export type Category = Database['public']['Tables']['categories']['Row'];
 export type Intent = Database['public']['Tables']['intents']['Row'];
-export type IntentInsert = Database['public']['Tables']['intents']['Insert'];
-export type IntentUpdate = Database['public']['Tables']['intents']['Update'];
-export type CategoryInsert = Database['public']['Tables']['categories']['Insert'];
 
 export interface IntentWithCategory extends Intent {
-  categories: Category | null;
+  categories: Category[];
 }
+
+export type IntentInsert = Omit<Intent, 'id' | 'created_at' | 'updated_at'> & {
+  category_ids?: string[];
+};
+
+export type IntentUpdate = Partial<IntentInsert>;
+export type CategoryInsert = Database['public']['Tables']['categories']['Insert'];

@@ -59,9 +59,7 @@ export function IntentCard({ intent, categories, onUpdate, onOpenPanel, onCreate
     }
   };
 
-  const handleCategorySelect = async (categoryId: string | null) => {
-    await onUpdate(intent.id, { category_id: categoryId });
-  };
+
 
   const handleDurationChange = async (minutes: number | null) => {
     await onUpdate(intent.id, { duration_minutes: minutes });
@@ -92,8 +90,8 @@ export function IntentCard({ intent, categories, onUpdate, onOpenPanel, onCreate
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <TagInput
               categories={categories}
-              selectedCategoryId={intent.category_id}
-              onSelect={handleCategorySelect}
+              selectedCategoryIds={intent.categories.map(c => c.id)}
+              onChange={(ids) => onUpdate(intent.id, { category_ids: ids })}
               onCreate={onCreateCategory}
             />
 
@@ -173,8 +171,8 @@ export function IntentCard({ intent, categories, onUpdate, onOpenPanel, onCreate
           <button
             onClick={() => onOpenPanel(intent)}
             className={`p-1.5 rounded-lg transition-all ${hasDetails
-                ? 'text-indigo-500 hover:bg-indigo-50'
-                : 'text-gray-300 hover:text-gray-400 hover:bg-gray-50'
+              ? 'text-indigo-500 hover:bg-indigo-50'
+              : 'text-gray-300 hover:text-gray-400 hover:bg-gray-50'
               }`}
             title="View details"
           >

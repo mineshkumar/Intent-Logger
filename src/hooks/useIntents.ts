@@ -40,14 +40,31 @@ export function useIntents() {
       const supabase = getSupabase();
       let query = supabase
         .from('intents')
-        .select('*, categories(*)')
+        .select(`
+          *,
+          intent_tags!inner (
+            category_id,
+            categories (
+              *
+            )
+          )
+        `)
         .order('created_at', { ascending: false });
 
-      if (categoryId) {
-        query = query.eq('category_id', categoryId);
-      }
+      // Note: We are fetching all intents and their tags. 
+      // If filtering by categoryId is needed at DB level, it requires more complex query or different approach
+      // For now, simpler to fetch all and filter in memory if needed, or rely on UI filtering.
+      // However, to keep existing API contract:
 
-      const { data, error } = await query;
+      const { data, error } = await supabase
+        .from('intents')
+        .select(`
+          *,
+          intent_tags (
+            categories (*)
+          )
+        `)
+        .order('created_at', { ascending: false });
 
       if (error) {
         setError(error.message);
@@ -56,7 +73,18 @@ export function useIntents() {
       }
 
       if (data) {
-        setIntents(data as unknown as IntentWithCategory[]);
+        // Transform the nested data structure
+        const formattedIntents = data.map((item: any) => ({
+          ...item,
+          categories: item.intent_tags.map((t: any) => t.categories).filter(Boolean),
+        })) as IntentWithCategory[];
+
+        if (categoryId) {
+          // Filter in memory for now
+          setIntents(formattedIntents.filter(i => i.categories.some(c => c.id === categoryId)));
+        } else {
+          setIntents(formattedIntents);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch intents');
@@ -66,44 +94,90 @@ export function useIntents() {
 
   const addIntent = useCallback(async (intent: IntentInsert) => {
     const supabase = getSupabase();
-    const { data, error } = await supabase
+    // 1. Insert intent
+    const { data: newIntent, error: intentError } = await supabase
       .from('intents')
-      .insert(intent as never)
-      .select('*, categories(*)')
+      .insert({
+        title: intent.title,
+        description: intent.description,
+        duration_minutes: intent.duration_minutes
+      })
+      .select()
       .single();
 
-    if (error) {
-      setError(error.message);
-      throw error;
+    if (intentError) {
+      setError(intentError.message);
+      throw intentError;
     }
 
-    if (data) {
-      setIntents((prev) => [data as unknown as IntentWithCategory, ...prev]);
+    if (!newIntent) throw new Error('Failed to create intent');
+
+    // 2. Insert tags if any
+    let attachedCategories: Category[] = [];
+    if (intent.category_ids && intent.category_ids.length > 0) {
+      const tagInserts = intent.category_ids.map(catId => ({
+        intent_id: newIntent.id,
+        category_id: catId
+      }));
+
+      const { error: tagError } = await supabase
+        .from('intent_tags')
+        .insert(tagInserts);
+
+      if (tagError) {
+        // Should probably rollback/delete intent here in strict system
+        console.error('Failed to add tags', tagError);
+      }
+
+      // We need the category objects to update state optimistically/correctly
+      // For simplicity, we can refetch or just find them from existing categories state
+      // Here we rely on refetching or just allow the UI update to wait for refresh
     }
-  }, []);
+
+    // Re-fetch to get complete object with tags
+    await fetchIntents();
+  }, [fetchIntents]);
 
   const updateIntent = useCallback(async (id: string, updates: IntentUpdate) => {
     const supabase = getSupabase();
-    const { data, error } = await supabase
-      .from('intents')
-      .update(updates as never)
-      .eq('id', id)
-      .select('*, categories(*)')
-      .single();
 
-    if (error) {
-      setError(error.message);
-      throw error;
+    // 1. Update fields on intent table
+    const { title, description, duration_minutes } = updates;
+    const intentUpdates: any = {};
+    if (title !== undefined) intentUpdates.title = title;
+    if (description !== undefined) intentUpdates.description = description;
+    if (duration_minutes !== undefined) intentUpdates.duration_minutes = duration_minutes;
+
+    if (Object.keys(intentUpdates).length > 0) {
+      const { error } = await supabase
+        .from('intents')
+        .update(intentUpdates)
+        .eq('id', id);
+
+      if (error) {
+        setError(error.message);
+        throw error;
+      }
     }
 
-    if (data) {
-      setIntents((prev) =>
-        prev.map((intent) =>
-          intent.id === id ? (data as unknown as IntentWithCategory) : intent
-        )
-      );
+    // 2. Update tags if provided
+    if (updates.category_ids) {
+      // Delete existing
+      await supabase.from('intent_tags').delete().eq('intent_id', id);
+
+      // Insert new
+      if (updates.category_ids.length > 0) {
+        const tagInserts = updates.category_ids.map(catId => ({
+          intent_id: id,
+          category_id: catId
+        }));
+        await supabase.from('intent_tags').insert(tagInserts);
+      }
     }
-  }, []);
+
+    // Re-fetch to ensure sync
+    await fetchIntents();
+  }, [fetchIntents]);
 
   const deleteIntent = useCallback(async (id: string) => {
     const supabase = getSupabase();
@@ -114,7 +188,7 @@ export function useIntents() {
       throw error;
     }
 
-    setIntents((prev) => prev.filter((intent) => intent.id !== id));
+    setIntents((prev: IntentWithCategory[]) => prev.filter((intent) => intent.id !== id));
   }, []);
 
   const createCategory = useCallback(async (name: string): Promise<Category | null> => {
@@ -160,16 +234,10 @@ export function useIntents() {
       setCategories((prev) =>
         prev.map((cat) => (cat.id === id ? updatedCategory : cat))
       );
-      // Also update the category in intents
-      setIntents((prev) =>
-        prev.map((intent) =>
-          intent.category_id === id
-            ? { ...intent, categories: updatedCategory }
-            : intent
-        )
-      );
+      // Refresh intents to update colors
+      fetchIntents();
     }
-  }, []);
+  }, [fetchIntents]);
 
   useEffect(() => {
     fetchCategories();
