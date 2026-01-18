@@ -87,21 +87,23 @@ export function IntentCard({ intent, categories, onUpdate, onOpenPanel, onCreate
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           {/* Tag, duration, and timestamp row */}
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <TagInput
-              categories={categories}
-              selectedCategoryIds={intent.categories.map(c => c.id)}
-              onChange={(ids) => onUpdate(intent.id, { category_ids: ids })}
-              onCreate={onCreateCategory}
-            />
+          <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[28px]">
+            <div className="flex items-center gap-2 flex-wrap">
+              <TagInput
+                categories={categories}
+                selectedCategoryIds={intent.categories.map(c => c.id)}
+                onChange={(ids) => onUpdate(intent.id, { category_ids: ids })}
+                onCreate={onCreateCategory}
+              />
 
-            <DurationInput
-              value={intent.duration_minutes}
-              onChange={handleDurationChange}
-              compact
-            />
+              <DurationInput
+                value={intent.duration_minutes}
+                onChange={handleDurationChange}
+                compact
+              />
+            </div>
 
-            <span className="text-xs text-gray-400">{formattedDate}</span>
+            <span className="text-xs text-gray-400 whitespace-nowrap ml-2 flex-shrink-0">{formattedDate}</span>
           </div>
 
           {/* Title - inline editable */}
