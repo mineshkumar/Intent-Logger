@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useMemo, useEffect } from 'react';
 import { useIntents } from '@/hooks/useIntents';
 import { QuickCapture } from './QuickCapture';
@@ -6,6 +8,7 @@ import { CategoryFilter } from './CategoryFilter';
 import { SidePanel } from './SidePanel';
 import { TagManager } from './TagManager';
 import { DayView } from './DayView';
+import { ActiveTimer } from './ActiveTimer';
 import type { IntentWithTags, TagWithCategory } from '@/types/database';
 
 export function IntentLogger() {
@@ -53,17 +56,62 @@ export function IntentLogger() {
     fetchIntents(categoryId);
   };
 
+  const handleCompleteActive = async () => {
+    if (activeIntent) {
+      await updateIntent(activeIntent.id, { status: 'completed' });
+    }
+  };
+
+  // Find active intent (in_progress)
+  // Assuming intents are sorted by date desc, so the first one found is likely the most recent active one
+  const activeIntent = useMemo(() => {
+    return intents.find(i => i.status === 'in_progress');
+  }, [intents]);
+
   // Cast categories to TagWithCategory[] for components that need it
   const tagsWithCategory = categories as unknown as import('@/types/database').TagWithCategory[];
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 lg:py-12">
-      <header className="mb-8">
-        <a href="/" className="block hover:opacity-80 transition-opacity">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Intent Logger</h1>
-        </a>
-        <p className="text-gray-600">Track what you're working on</p>
-      </header>
+      {/* Sticky Header Section */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm pt-4 pb-2 -mt-4 mb-6 border-b border-transparent transition-all" style={{ top: 0 }}>
+        <header className="mb-4 flex items-center justify-between">
+          <div>
+            <a href="/" className="block hover:opacity-80 transition-opacity">
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">Intent Logger</h1>
+            </a>
+            <p className="text-gray-600">Track what you're working on</p>
+          </div>
+          <button
+            onClick={() => setShowTagManager(true)}
+            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+            title="Manage Tags"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+          </button>
+        </header>
+
+        {/* Active Timer Banner */}
+        {activeIntent && (
+          <ActiveTimer intent={activeIntent} onComplete={handleCompleteActive} />
+        )}
+
+        <QuickCapture
+          onSubmit={handleAddIntent}
+          isLoading={isSubmitting}
+          categories={tagsWithCategory}
+        />
+
+        {categories.length > 0 && (
+          <CategoryFilter
+            categories={categories}
+            selectedCategoryId={selectedCategoryId}
+            onSelect={handleCategorySelect}
+          />
+        )}
+      </div>
 
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 flex justify-between items-start">
@@ -83,27 +131,6 @@ export function IntentLogger() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 items-start">
         {/* Main Column */}
         <div className="min-w-0">
-          <div className="flex items-center justify-between mb-4">
-            <QuickCapture onSubmit={handleAddIntent} isLoading={isSubmitting} />
-            <button
-              onClick={() => setShowTagManager(true)}
-              className="ml-4 p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-              title="Manage Tags"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-            </button>
-          </div>
-
-          {categories.length > 0 && (
-            <CategoryFilter
-              categories={categories}
-              selectedCategoryId={selectedCategoryId}
-              onSelect={handleCategorySelect}
-            />
-          )}
-
           <IntentList
             intents={intents}
             categories={tagsWithCategory}
@@ -117,7 +144,7 @@ export function IntentLogger() {
         </div>
 
         {/* Right Sidebar - Day View */}
-        <div className="hidden lg:block">
+        <div className="hidden lg:block sticky top-24 h-fit">
           <DayView
             intents={intents}
             onOpenPanel={setSelectedIntent}
