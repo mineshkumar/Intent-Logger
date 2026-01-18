@@ -160,11 +160,12 @@ export function useIntents() {
     const supabase = getSupabase();
 
     // 1. Update fields on intent table
-    const { title, description, duration_minutes } = updates;
+    const { title, description, duration_minutes, created_at } = updates;
     const intentUpdates: any = {};
     if (title !== undefined) intentUpdates.title = title;
     if (description !== undefined) intentUpdates.description = description;
     if (duration_minutes !== undefined) intentUpdates.duration_minutes = duration_minutes;
+    if (created_at !== undefined) intentUpdates.created_at = created_at;
 
     if (Object.keys(intentUpdates).length > 0) {
       const { error } = await supabase

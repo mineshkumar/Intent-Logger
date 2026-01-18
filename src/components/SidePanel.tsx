@@ -155,6 +155,24 @@ export function SidePanel({ intent, categories, tagCategories, onClose, onUpdate
             />
           </div>
 
+          {/* Start Time section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Started At
+            </label>
+            <input
+              type="datetime-local"
+              value={new Date(intent.created_at).toLocaleString('sv').slice(0, 16).replace(' ', 'T')} // Format for datetime-local
+              onChange={async (e) => {
+                const newDate = new Date(e.target.value);
+                if (!isNaN(newDate.getTime())) {
+                  await onUpdate(intent.id, { created_at: newDate.toISOString() });
+                }
+              }}
+              className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            />
+          </div>
+
           {/* Notes section */}
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
