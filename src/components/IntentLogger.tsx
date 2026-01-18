@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useAuth } from './AuthProvider';
 import { useIntents } from '@/hooks/useIntents';
 import { QuickCapture } from './QuickCapture';
 import { IntentList } from './IntentList';
@@ -9,6 +10,7 @@ import { DayView } from './DayView';
 import type { IntentWithTags, TagWithCategory } from '@/types/database';
 
 export function IntentLogger() {
+  const { user, signOut } = useAuth();
   const {
     intents,
     categories,
@@ -58,11 +60,22 @@ export function IntentLogger() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 lg:py-12">
-      <header className="mb-8">
-        <a href="/" className="block hover:opacity-80 transition-opacity">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Intent Logger</h1>
-        </a>
-        <p className="text-gray-600">Track what you're working on</p>
+      <header className="mb-8 flex items-start justify-between">
+        <div>
+          <a href="/" className="block hover:opacity-80 transition-opacity">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Intent Logger</h1>
+          </a>
+          <p className="text-gray-600">Track what you're working on</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-500 hidden sm:inline">{user?.email}</span>
+          <button
+            onClick={signOut}
+            className="text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </header>
 
       {error && (
