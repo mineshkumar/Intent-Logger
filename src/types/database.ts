@@ -62,6 +62,8 @@ export interface Database {
           title: string;
           description: string | null;
           duration_minutes: number | null;
+          status: 'planned' | 'in_progress' | 'completed' | 'skipped';
+          is_private: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -70,6 +72,8 @@ export interface Database {
           title: string;
           description?: string | null;
           duration_minutes?: number | null;
+          status?: 'planned' | 'in_progress' | 'completed' | 'skipped';
+          is_private?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -78,6 +82,8 @@ export interface Database {
           title?: string;
           description?: string | null;
           duration_minutes?: number | null;
+          status?: 'planned' | 'in_progress' | 'completed' | 'skipped';
+          is_private?: boolean;
           created_at?: string;
           updated_at?: string;
         };

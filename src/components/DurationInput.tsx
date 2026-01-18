@@ -6,6 +6,7 @@ interface DurationInputProps {
   value: number | null;
   onChange: (minutes: number | null) => void;
   compact?: boolean;
+  className?: string; // Added className support
 }
 
 export function formatDuration(minutes: number | null): string {
@@ -52,7 +53,7 @@ function parseDuration(input: string): number | null {
   return totalMinutes > 0 ? Math.round(totalMinutes) : null;
 }
 
-export function DurationInput({ value, onChange, compact = false }: DurationInputProps) {
+export function DurationInput({ value, onChange, compact = false, className = '' }: DurationInputProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -99,17 +100,16 @@ export function DurationInput({ value, onChange, compact = false }: DurationInpu
 
   if (isEditing) {
     return (
-      <div ref={containerRef} className="relative">
+      <div ref={containerRef} className={`relative ${className}`}>
         <input
           ref={inputRef}
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="e.g., 45, 1h, 1h 30m"
-          className={`text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none ${
-            compact ? 'w-24 px-2 py-0.5 text-xs' : 'w-32 px-3 py-1.5 text-sm'
-          }`}
+          placeholder="e.g., 45, 1h"
+          className={`text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none ${compact ? 'w-24 px-2 py-0.5 text-xs' : 'w-32 px-3 py-1.5 text-sm'
+            }`}
         />
         {inputValue && (
           <div className="absolute top-full left-0 mt-1 px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
@@ -124,11 +124,10 @@ export function DurationInput({ value, onChange, compact = false }: DurationInpu
     return (
       <button
         onClick={handleStartEdit}
-        className={`px-1.5 py-0.5 rounded text-xs transition-colors ${
-          value
+        className={`px-1.5 py-0.5 rounded text-xs transition-colors ${value
             ? 'text-gray-600 bg-gray-100 hover:bg-gray-200'
             : 'text-gray-400 hover:text-gray-500 hover:bg-gray-100'
-        }`}
+          } ${className}`}
       >
         {value ? formatDurationShort(value) : '+ time'}
       </button>
@@ -138,11 +137,10 @@ export function DurationInput({ value, onChange, compact = false }: DurationInpu
   return (
     <button
       onClick={handleStartEdit}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-        value
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${value
           ? 'text-gray-700 bg-gray-100 hover:bg-gray-200'
           : 'text-gray-400 border border-dashed border-gray-300 hover:border-gray-400 hover:text-gray-500'
-      }`}
+        } ${className}`}
     >
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

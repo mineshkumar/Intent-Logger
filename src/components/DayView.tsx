@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { IntentWithTags, TagWithCategory } from '@/types/database';
+import type { IntentWithTags } from '@/types/database';
 
 interface DayViewProps {
     intents: IntentWithTags[];
@@ -52,6 +52,17 @@ export function DayView({ intents, onOpenPanel }: DayViewProps) {
         );
     }
 
+    // Helper to format total duration
+    const formatTotalTime = (intents: IntentWithTags[]) => {
+        const totalMinutes = intents.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
+        if (!totalMinutes) return '';
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+        if (hours > 0) return `${hours}h`;
+        return `${mins}m`;
+    };
+
     const sections = [
         { title: 'Evening', data: groupedIntents.Evening },
         { title: 'Afternoon', data: groupedIntents.Afternoon },
@@ -63,54 +74,78 @@ export function DayView({ intents, onOpenPanel }: DayViewProps) {
             <h2 className="text-lg font-semibold text-gray-900 mb-6">Today&apos;s Timeline</h2>
 
             <div className="space-y-8">
-                {sections.map(section => (
-                    <div key={section.title} className="relative pl-4">
-                        {/* Section Header */}
-                        <div className="absolute left-0 -ml-1.5 mt-0.5 w-3 h-3 rounded-full bg-gray-200 border-2 border-white z-10" />
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 pl-2">
-                            {section.title}
-                        </h3>
+                {sections.map(section => {
+                    const totalTime = formatTotalTime(section.data);
 
-                        {/* Timeline Line */}
-                        <div className="absolute top-3 bottom-0 left-[3px] w-0.5 bg-gray-100" />
+                    return (
+                        <div key={section.title} className="relative pl-4">
+                            {/* Section Header */}
+                            <div className="absolute left-0 -ml-1.5 mt-0.5 w-3 h-3 rounded-full bg-gray-200 border-2 border-white z-10" />
+                            <div className="flex items-center justify-between mb-4 pl-2 pr-1">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                                    {section.title}
+                                </h3>
+                                {totalTime && (
+                                    <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                                        {totalTime}
+                                    </span>
+                                )}
+                            </div>
 
-                        <div className="space-y-6">
-                            {section.data.map((intent) => {
-                                const date = new Date(intent.created_at);
-                                const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                const primaryColor = intent.categories?.[0]?.color || '#9ca3af';
+                            {/* Timeline Line */}
+                            <div className="absolute top-3 bottom-0 left-[3px] w-0.5 bg-gray-100" />
 
-                                return (
-                                    <div
-                                        key={intent.id}
-                                        className="relative flex gap-4 group cursor-pointer"
-                                        onClick={() => onOpenPanel(intent)}
-                                    >
-                                        {/* Item Dot */}
+                            <div className="space-y-6">
+                                {section.data.map((intent) => {
+                                    const date = new Date(intent.created_at);
+                                    const now = new Date();
+                                    const diffMins = Math.floor((now.getTime() - date.getTime()) / 60000);
+
+                                    // Show relative time if < 1 hour ago
+                                    let timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    if (diffMins >= 0 && diffMins < 60) {
+                                        timeString = `${diffMins}m ago`;
+                                    } else if (diffMins < 0) {
+                                        // Future items (if any, though filter is today)
+                                        timeString = `in ${Math.abs(diffMins)}m`;
+                                    }
+
+                                    // Default color if undefined
+                                    // Use 'categories' prop if available, else check if intent has categories attached
+                                    const primaryColor = intent.categories?.[0]?.color || '#9ca3af';
+
+                                    return (
                                         <div
-                                            className="absolute left-[-1.125rem] mt-1.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm z-10 transition-transform group-hover:scale-125"
-                                            style={{ backgroundColor: primaryColor }}
-                                        />
+                                            key={intent.id}
+                                            className="relative flex gap-4 group cursor-pointer"
+                                            onClick={() => onOpenPanel(intent)}
+                                        >
+                                            {/* Item Dot */}
+                                            <div
+                                                className="absolute left-[-1.125rem] mt-1.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm z-10 transition-transform group-hover:scale-125"
+                                                style={{ backgroundColor: primaryColor }}
+                                            />
 
-                                        <div className="flex-1 min-w-0 pl-2">
-                                            <span className="text-xs font-medium text-gray-400 block mb-0.5">
-                                                {timeString}
-                                            </span>
-                                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
-                                                {intent.title}
-                                            </p>
-                                            {intent.duration_minutes && (
-                                                <span className="text-xs text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded mt-1 inline-block">
-                                                    {intent.duration_minutes}m
+                                            <div className="flex-1 min-w-0 pl-2">
+                                                <span className="text-xs font-medium text-gray-400 block mb-0.5">
+                                                    {timeString}
                                                 </span>
-                                            )}
+                                                <p className="text-sm font-medium text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
+                                                    {intent.title}
+                                                </p>
+                                                {intent.duration_minutes && (
+                                                    <span className="text-xs text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded mt-1 inline-block border border-gray-100">
+                                                        {intent.duration_minutes}m
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
