@@ -58,6 +58,8 @@ function DailyPulse({ intents }: { intents: IntentWithTags[] }) {
 
 export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
+    const [containerHeight, setContainerHeight] = useState(800);
+    const [isZoomed, setIsZoomed] = useState(false);
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const [resizingId, setResizingId] = useState<string | null>(null);
     const [now, setNow] = useState<Date | null>(null);
@@ -71,6 +73,24 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
     // Initial drag/resize position
     const dragStartRef = useRef<{ y: number; originalDate: Date; originalDuration: number } | null>(null);
     const hasScrolledRef = useRef(false);
+
+    const pixelsPerMinute = useMemo(() => {
+        if (isZoomed) return 2; // Fixed detailed view
+        // Fit 24h into the container height
+        return Math.max(0.2, containerHeight / MINUTES_IN_DAY);
+    }, [isZoomed, containerHeight]);
+
+    // Measure container height for dynamic scaling
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                setContainerHeight(entry.contentRect.height);
+            }
+        });
+        observer.observe(containerRef.current);
+        return () => observer.disconnect();
+    }, []);
 
     // Clock
     useEffect(() => {
@@ -92,21 +112,18 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
     // Helpers for Descending Timeline (00:00 at bottom, 24:00 at top)
     const getTopFromTime = (date: Date) => {
         const minutes = date.getHours() * 60 + date.getMinutes();
-        // Inverted: Full day (top=0) is 24:00. 00:00 is at top=2880.
-        // Formula: (24*60 - minutes) * Scale
-        return (MINUTES_IN_DAY - minutes) * PIXELS_PER_MINUTE;
+        return (MINUTES_IN_DAY - minutes) * pixelsPerMinute;
     };
 
-    // Auto-scroll logic for descending
+    // Auto-scroll logic (only for Zoomed mode, or initial load? Fit mode doesn't need scroll)
     useEffect(() => {
-        if (containerRef.current && !hasScrolledRef.current && now) {
+        if (isZoomed && containerRef.current && !hasScrolledRef.current && now) {
             const top = getTopFromTime(now);
-            // Scroll to center 'now' if possible, or have it near top since we look down for history
-            const scrollTarget = Math.max(0, top - 300);
+            const scrollTarget = Math.max(0, top - containerHeight / 2);
             containerRef.current.scrollTop = scrollTarget;
             hasScrolledRef.current = true;
         }
-    }, [now]);
+    }, [now, isZoomed, containerHeight, pixelsPerMinute]);
 
     const handleMouseMove = (e: MouseEvent) => {
         if (!dragStartRef.current || !containerRef.current) return;
@@ -114,7 +131,7 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
         const deltaY = e.clientY - dragStartRef.current.y;
 
         // INVERTED LOGIC: Moving Mouse DOWN (positive deltaY) -> Time DECREASES.
-        const deltaMinutes = Math.round((-deltaY / PIXELS_PER_MINUTE) / SNAP_MINUTES) * SNAP_MINUTES;
+        const deltaMinutes = Math.round((-deltaY / pixelsPerMinute) / SNAP_MINUTES) * SNAP_MINUTES;
 
         if (draggingId) {
             const newDate = new Date(dragStartRef.current.originalDate.getTime() + deltaMinutes * 60000);
@@ -161,7 +178,7 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
         };
-    }, [draggingId, resizingId]);
+    }, [draggingId, resizingId, pixelsPerMinute]); // Added pixelsPerMinute dep logic
 
     const startDrag = (e: React.MouseEvent, intent: IntentWithTags) => {
         e.preventDefault();
@@ -189,8 +206,22 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 sticky top-4 h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
-            <div className="px-6 pt-4 pb-2 bg-white z-20 flex-shrink-0">
+            <div className="px-6 pt-4 pb-2 bg-white z-20 flex-shrink-0 flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-900">Today&apos;s Timeline</h2>
+                <div className="flex bg-gray-100 rounded-lg p-0.5">
+                    <button
+                        onClick={() => setIsZoomed(false)}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${!isZoomed ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Fit
+                    </button>
+                    <button
+                        onClick={() => setIsZoomed(true)}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${isZoomed ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Zoom
+                    </button>
+                </div>
             </div>
 
             <DailyPulse intents={todaysIntents} />
@@ -198,9 +229,9 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
 
             <div
                 ref={containerRef}
-                className="relative w-full flex-1 overflow-y-auto overflow-x-hidden scroll-smooth"
+                className={`relative w-full flex-1 overflow-x-hidden ${isZoomed ? 'overflow-y-auto scroll-smooth' : 'overflow-hidden'}`}
             >
-                <div style={{ height: MINUTES_IN_DAY * PIXELS_PER_MINUTE }} className="relative w-full">
+                <div style={{ height: MINUTES_IN_DAY * pixelsPerMinute }} className="relative w-full">
                     {/* Background Grid - Descending: 24 (Top) -> 00 (Bottom) */}
                     {Array.from({ length: 25 }).map((_, i) => {
                         const hour = 24 - i; // 24, 23, ... 0
@@ -208,9 +239,10 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                             <div
                                 key={hour}
                                 className="absolute w-full border-t border-gray-50 flex items-center"
-                                style={{ top: i * 60 * PIXELS_PER_MINUTE, height: 60 * PIXELS_PER_MINUTE }}
+                                style={{ top: i * 60 * pixelsPerMinute, height: 60 * pixelsPerMinute }}
                             >
-                                <span className="text-[10px] text-gray-300 font-mono ml-4 -mt-[calc(60*PIXELS_PER_MINUTE)] transform -translate-y-1/2 select-none">
+                                <span className="text-[10px] text-gray-300 font-mono ml-4 -mt-[calc(60*var(--ppm))] transform -translate-y-1/2 select-none"
+                                    style={{ '--ppm': pixelsPerMinute } as React.CSSProperties}>
                                     {hour === 24 ? '00:00 (Next)' : `${hour.toString().padStart(2, '0')}:00`}
                                 </span>
                             </div>
@@ -244,17 +276,16 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                         // Top of Div should be the LATER time (End Time)
                         const endTime = new Date(date.getTime() + duration * 60000);
                         const top = getTopFromTime(endTime);
-                        const height = duration * PIXELS_PER_MINUTE;
+                        const height = duration * pixelsPerMinute;
                         const primaryColor = intent.categories?.[0]?.color || '#9ca3af';
 
                         return (
                             <div
                                 key={intent.id}
-                                className={`absolute left-14 right-2 rounded-md border text-xs overflow-hidden group select-none transition-shadow ${isDragging ? 'z-50 shadow-lg opacity-90' : 'z-10 hover:z-20'
-                                    }`}
+                                className={`absolute left-14 right-2 rounded-md border text-xs overflow-hidden group select-none transition-shadow ${isDragging ? 'z-50 shadow-lg opacity-90' : 'z-10 hover:z-20'}`}
                                 style={{
                                     top,
-                                    height: Math.max(height, 20),
+                                    height: Math.max(height, isZoomed ? 20 : 10), // Smaller min height in Fit mode
                                     backgroundColor: isDragging ? '#fff' : `${primaryColor}15`,
                                     borderColor: `${primaryColor}40`,
                                     borderLeftWidth: 4,
@@ -269,10 +300,10 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                                 {/* Resize Handle - AT TOP for Descending */}
                                 {!isDragging && (
                                     <div
-                                        className="absolute top-0 left-0 right-0 h-2 hover:bg-black/5 cursor-ns-resize flex justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                                        className="absolute top-0 left-0 right-0 h-3 -mt-1 hover:bg-black/5 cursor-ns-resize flex justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity z-50"
                                         onMouseDown={(e) => startResize(e, intent)}
                                     >
-                                        <div className="w-6 h-0.5 rounded-full bg-gray-300" />
+                                        <div className="w-6 h-0.5 rounded-full bg-gray-400 shadow-sm" />
                                     </div>
                                 )}
 
@@ -282,7 +313,8 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                                         <div className="font-semibold text-gray-900 truncate leading-tight">
                                             {intent.title}
                                         </div>
-                                        {height > 30 && (
+                                        {/* Hide time if too short for readability in Fit mode */}
+                                        {height > (isZoomed ? 30 : 15) && (
                                             <div className="text-[10px] text-gray-500 font-mono leading-tight">
                                                 {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </div>
