@@ -276,9 +276,9 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                                     </div>
                                 )}
 
-                                {/* Content - Using flex-col justify-end so title is at bottom (Start Time) */}
-                                <div className="absolute inset-0 px-2 py-0.5 flex flex-col justify-end pointer-events-none">
-                                    <div className="min-w-0 pb-1">
+                                {/* Content - Force to bottom with absolute positioning */}
+                                <div className="absolute bottom-0 left-0 right-0 px-2 py-1 pointer-events-none">
+                                    <div className="min-w-0">
                                         <div className="font-semibold text-gray-900 truncate leading-tight">
                                             {intent.title}
                                         </div>
