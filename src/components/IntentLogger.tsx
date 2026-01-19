@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
 import { useIntents } from '@/hooks/useIntents';
 import { QuickCapture } from './QuickCapture';
 import { IntentList } from './IntentList';
@@ -9,7 +10,7 @@ import { SidePanel } from './SidePanel';
 import { TagManager } from './TagManager';
 import { DayView } from './DayView';
 import { ActiveTimer } from './ActiveTimer';
-import type { IntentWithTags, TagWithCategory } from '@/types/database';
+import type { IntentWithTags } from '@/types/database';
 
 export function IntentLogger() {
   const {
@@ -77,10 +78,10 @@ export function IntentLogger() {
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm pt-4 pb-2 -mt-4 mb-6 border-b border-transparent transition-all" style={{ top: 0 }}>
         <header className="mb-4 flex items-center justify-between">
           <div>
-            <a href="/" className="block hover:opacity-80 transition-opacity">
+            <Link href="/" className="block hover:opacity-80 transition-opacity">
               <h1 className="text-3xl font-bold text-gray-900 mb-1">Intent Logger</h1>
-            </a>
-            <p className="text-gray-600">Track what you're working on</p>
+            </Link>
+            <p className="text-gray-600">Track what you&apos;re working on</p>
           </div>
           <button
             onClick={() => setShowTagManager(true)}
@@ -148,6 +149,7 @@ export function IntentLogger() {
           <DayView
             intents={intents}
             onOpenPanel={setSelectedIntent}
+            onUpdate={updateIntent}
           />
         </div>
       </div>
