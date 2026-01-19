@@ -43,11 +43,16 @@ function DailyPulse({ intents }: { intents: IntentWithTags[] }) {
     return (
         <div className="mb-6 px-6 pt-6">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Daily Pulse</h3>
-            <div className="flex h-2 rounded-full overflow-hidden w-full bg-gray-100">
+            <div className="flex h-3 rounded-full overflow-hidden w-full bg-gray-100 shadow-inner">
                 {distribution.map(d => (
                     <div
                         key={d.name}
-                        style={{ width: `${d.pct}%`, backgroundColor: d.color }}
+                        className="transition-all duration-500 hover:opacity-90"
+                        style={{
+                            width: `${d.pct}%`,
+                            backgroundColor: d.color,
+                            boxShadow: `0 0 10px ${d.color}40` // Glow effect
+                        }}
                         title={`${d.name}: ${d.mins}m`}
                     />
                 ))}
@@ -273,17 +278,25 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                 ref={containerRef}
                 className={`relative w-full flex-1 overflow-x-hidden ${isZoomed ? 'overflow-y-auto scroll-smooth' : 'overflow-hidden'}`}
             >
-                <div style={{ height: MINUTES_IN_DAY * pixelsPerMinute }} className="relative w-full">
+                <div
+                    style={{
+                        height: MINUTES_IN_DAY * pixelsPerMinute,
+                        backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
+                        backgroundSize: '20px 20px',
+                        backgroundPosition: '0 0'
+                    }}
+                    className="relative w-full"
+                >
                     {/* Background Grid - Descending: 24 (Top) -> 00 (Bottom) */}
                     {Array.from({ length: 25 }).map((_, i) => {
                         const hour = 24 - i; // 24, 23, ... 0
                         return (
                             <div
                                 key={hour}
-                                className="absolute w-full border-t border-gray-50 flex items-center"
+                                className="absolute w-full border-t border-gray-100 flex items-center"
                                 style={{ top: i * 60 * pixelsPerMinute, height: 60 * pixelsPerMinute }}
                             >
-                                <span className="text-xs text-gray-500 font-mono ml-4 -mt-[calc(60*var(--ppm))] transform -translate-y-1/2 select-none"
+                                <span className="text-xs text-gray-400/60 font-mono ml-4 -mt-[calc(60*var(--ppm))] transform -translate-y-1/2 select-none"
                                     style={{ '--ppm': pixelsPerMinute } as React.CSSProperties}>
                                     {hour === 24 ? '00:00 (Next)' : `${hour.toString().padStart(2, '0')}:00`}
                                 </span>
@@ -294,10 +307,10 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                     {/* Current Time Indicator */}
                     {now && (
                         <div
-                            className="absolute w-full border-t-2 border-red-400 z-30 pointer-events-none flex items-center"
+                            className="absolute w-full border-t-2 border-red-400 z-[60] pointer-events-none flex items-center shadow-[0_0_8px_rgba(248,113,113,0.6)] transition-all duration-1000 ease-linear"
                             style={{ top: getTopFromTime(now) }}
                         >
-                            <div className="w-2 h-2 rounded-full bg-red-400 -ml-1" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1.5 border-2 border-white shadow-sm" />
                         </div>
                     )}
 
@@ -321,15 +334,19 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                         const height = duration * pixelsPerMinute;
                         const primaryColor = intent.categories?.[0]?.color || '#9ca3af';
 
+                        // Check if Active (Current Time is within this intent)
+                        const isActive = now && date <= now && endTime > now;
+
                         return (
                             <div
                                 key={intent.id}
-                                className={`absolute left-14 right-2 rounded-md border text-xs overflow-hidden group select-none transition-shadow ${isDragging ? 'z-50 shadow-lg opacity-90' : 'z-10 hover:z-20'}`}
+                                className={`absolute left-14 right-2 rounded-md border text-xs overflow-hidden group select-none transition-shadow ${isDragging ? 'z-50 shadow-lg opacity-90' : 'z-10 hover:z-20'
+                                    } ${isActive ? 'ring-2 ring-indigo-400/50 shadow-md z-30' : ''}`}
                                 style={{
                                     top,
                                     height: Math.max(height, isZoomed ? 20 : 10), // Smaller min height in Fit mode
                                     backgroundColor: isDragging ? '#fff' : `${primaryColor}15`,
-                                    borderColor: `${primaryColor}40`,
+                                    borderColor: isActive ? '#818cf8' : `${primaryColor}40`,
                                     borderLeftWidth: 4,
                                     borderLeftColor: primaryColor,
                                     cursor: 'grab'
@@ -353,10 +370,15 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                                 <div className="absolute bottom-0 left-0 right-0 px-2 py-1 pointer-events-none">
                                     <div className="min-w-0 relative">
                                         {height < 30 ? (
-                                            /* Pop-out Title for Small Intents */
-                                            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-white/90 backdrop-blur-sm border border-gray-100 shadow-sm rounded-md px-2 py-0.5 whitespace-nowrap z-50">
-                                                <div className="font-semibold text-gray-900 text-xs">
-                                                    {intent.title} <span className="text-gray-400 font-normal">({duration}m)</span>
+                                            /* Lollipop Label for Small Intents */
+                                            <div className="absolute left-full top-1/2 -translate-y-1/2 flex items-center z-50 pointer-events-none">
+                                                {/* Leader Line */}
+                                                <div className="w-4 h-px bg-gray-300 mr-1" />
+                                                {/* Label */}
+                                                <div className="bg-white/90 backdrop-blur-sm border border-gray-100 shadow-sm rounded-md px-2 py-0.5 whitespace-nowrap">
+                                                    <div className="font-semibold text-gray-900 text-xs">
+                                                        {intent.title} <span className="text-gray-400 font-normal">({duration}m)</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ) : (
