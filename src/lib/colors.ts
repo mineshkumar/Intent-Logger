@@ -33,3 +33,13 @@ export function getNextColor(usedColors: string[]): string {
   // If all colors are used, return a random one
   return getRandomColor();
 }
+
+// Productivity mapping for Red/Green UI
+export const PRODUCTIVE_CATEGORIES = ['Work', 'Health', 'Learning', 'Side Project', 'Reflect', 'Essentials'];
+export const UNPRODUCTIVE_CATEGORIES = ['Entertainment', 'Phone', 'Social'];
+
+export function isProductive(categoryName: string): boolean | null {
+  if (PRODUCTIVE_CATEGORIES.includes(categoryName)) return true;
+  if (UNPRODUCTIVE_CATEGORIES.includes(categoryName)) return false;
+  return null; // Neutral/Unknown
+}

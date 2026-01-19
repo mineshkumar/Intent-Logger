@@ -283,7 +283,7 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                                 className="absolute w-full border-t border-gray-50 flex items-center"
                                 style={{ top: i * 60 * pixelsPerMinute, height: 60 * pixelsPerMinute }}
                             >
-                                <span className="text-[10px] text-gray-300 font-mono ml-4 -mt-[calc(60*var(--ppm))] transform -translate-y-1/2 select-none"
+                                <span className="text-xs text-gray-500 font-mono ml-4 -mt-[calc(60*var(--ppm))] transform -translate-y-1/2 select-none"
                                     style={{ '--ppm': pixelsPerMinute } as React.CSSProperties}>
                                     {hour === 24 ? '00:00 (Next)' : `${hour.toString().padStart(2, '0')}:00`}
                                 </span>

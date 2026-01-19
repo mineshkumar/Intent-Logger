@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { TagInput } from './TagInput';
 import { DurationInput, formatDurationShort } from './DurationInput';
 import type { Tag, TagCategory, TagWithCategory, IntentWithTags, IntentUpdate } from '@/types/database';
+import { isProductive } from '@/lib/colors';
 
 interface IntentCardProps {
   intent: IntentWithTags;
@@ -94,16 +95,40 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
   };
 
   const primaryCategory = intent.categories?.[0];
-  const tintColor = primaryCategory ? getBackgroundTint(primaryCategory.color) : undefined;
-  const borderColor = primaryCategory ? primaryCategory.color : '#e5e7eb';
+  const primaryCategoryName = primaryCategory?.name;
+
+  // New Logic: Red/Green based on name productivity
+  const productivity = primaryCategoryName ? isProductive(primaryCategoryName) : null;
+
+  let backgroundColor = '#ffffff';
+  let borderColor = '#f3f4f6';
+
+  if (status === 'completed') {
+    backgroundColor = '#f8fafc';
+    borderColor = '#f1f5f9';
+  } else if (productivity === true) {
+    // Productive -> Green
+    backgroundColor = '#f0fdf4'; // green-50
+    borderColor = '#bbf7d0'; // green-200
+  } else if (productivity === false) {
+    // Unproductive -> Red
+    backgroundColor = '#fef2f2'; // red-50
+    borderColor = '#fecaca'; // red-200
+  } else if (primaryCategory) {
+    // Fallback? Or just use Neutral if user said "ONLY red/green"?
+    // User said "not color from tag".
+    // Let's default to neutral white/gray if not mapped.
+    backgroundColor = '#ffffff';
+    borderColor = '#e5e7eb';
+  }
 
   return (
     <div
       className={`rounded-xl border transition-all group ${status === 'completed' ? 'opacity-80' : 'shadow-sm hover:shadow-md'
         }`}
       style={{
-        backgroundColor: status === 'completed' ? '#f8fafc' : (tintColor || '#ffffff'),
-        borderColor: status === 'completed' ? '#f1f5f9' : (primaryCategory ? `${borderColor}40` : '#f3f4f6')
+        backgroundColor,
+        borderColor
       }}
     >
       <div className="p-3 flex items-start gap-3">
