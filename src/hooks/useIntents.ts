@@ -61,8 +61,8 @@ export function useIntents() {
     }
   }, []);
 
-  const fetchIntents = useCallback(async (categoryId?: string | null) => {
-    setIsLoading(true);
+  const fetchIntents = useCallback(async (categoryId?: string | null, options: { silent?: boolean } = {}) => {
+    if (!options.silent) setIsLoading(true);
     setError(null);
 
     try {
@@ -86,7 +86,7 @@ export function useIntents() {
 
       if (error) {
         setError(error.message);
-        setIsLoading(false);
+        if (!options.silent) setIsLoading(false);
         return;
       }
 
@@ -107,7 +107,7 @@ export function useIntents() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch intents');
     }
-    setIsLoading(false);
+    if (!options.silent) setIsLoading(false);
   }, []);
 
   const addIntent = useCallback(async (intent: IntentInsert) => {
@@ -153,7 +153,7 @@ export function useIntents() {
     }
 
     // Re-fetch to get complete object with tags
-    await fetchIntents();
+    await fetchIntents(undefined, { silent: true });
   }, [fetchIntents]);
 
   const updateIntent = useCallback(async (id: string, updates: IntentUpdate) => {
@@ -195,7 +195,7 @@ export function useIntents() {
     }
 
     // Re-fetch to ensure sync
-    await fetchIntents();
+    await fetchIntents(undefined, { silent: true });
   }, [fetchIntents]);
 
   const deleteIntent = useCallback(async (id: string) => {
@@ -288,7 +288,7 @@ export function useIntents() {
         prev.map((cat) => (cat.id === id ? updatedCategory : cat))
       );
       // Refresh intents to update colors
-      fetchIntents();
+      fetchIntents(undefined, { silent: true });
     }
   }, [fetchIntents]);
 
@@ -303,7 +303,7 @@ export function useIntents() {
 
     setCategories((prev) => prev.filter((cat) => cat.id !== id));
     // Refresh intents to remove deleted tag references
-    fetchIntents();
+    fetchIntents(undefined, { silent: true });
   }, [fetchIntents]);
 
   useEffect(() => {

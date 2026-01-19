@@ -210,7 +210,7 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
             <TagInput
               categories={categories}
               tagCategories={tagCategories}
-              selectedCategoryIds={intent.categories.map(c => c.id)}
+              selectedCategoryIds={optimisticCategories.map(c => c.id)}
               onChange={(ids) => onUpdate(intent.id, { category_ids: ids })}
               onCreate={onCreateCategory}
             />
@@ -219,22 +219,28 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Find 'Productive' tag
+                  // Optimistic Update
                   const prodTag = categories.find(c => c.name === 'Productive');
                   if (prodTag) {
-                    const isActive = intent.categories.some(c => c.id === prodTag.id);
-                    const newIds = isActive
-                      ? intent.categories.filter(c => c.id !== prodTag.id).map(c => c.id)
-                      : [...intent.categories.map(c => c.id), prodTag.id];
+                    const isActive = optimisticCategories.some(c => c.id === prodTag.id);
+                    const newCategories = isActive
+                      ? optimisticCategories.filter(c => c.id !== prodTag.id)
+                      : [...optimisticCategories, prodTag];
+                    setOptimisticCategories(newCategories); // Instant UI
+
+                    // Async DB Update
+                    const newIds = newCategories.map(c => c.id);
                     onUpdate(intent.id, { category_ids: newIds });
                   } else {
-                    // Create it?
                     onCreateCategory('Productive').then(tag => {
-                      if (tag) onUpdate(intent.id, { category_ids: [...intent.categories.map(c => c.id), tag.id] });
+                      if (tag) {
+                        // Update Optimistic? Too complex/late. Just update DB.
+                        onUpdate(intent.id, { category_ids: [...intent.categories.map(c => c.id), tag.id] });
+                      }
                     });
                   }
                 }}
-                className={`p-1 rounded hover:bg-white hover:shadow-sm text-xs ${intent.categories.some(c => c.name === 'Productive') ? 'text-green-600 bg-white shadow-sm' : 'text-gray-400'}`}
+                className={`p-1 rounded hover:bg-white hover:shadow-sm text-xs ${optimisticCategories.some(c => c.name === 'Productive') ? 'text-green-600 bg-white shadow-sm' : 'text-gray-400'}`}
                 title="Mark Productive (Green)"
               >
                 👍
@@ -242,13 +248,17 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Find 'Unproductive' tag
+                  // Optimistic Update
                   const unprodTag = categories.find(c => c.name === 'Unproductive');
                   if (unprodTag) {
-                    const isActive = intent.categories.some(c => c.id === unprodTag.id);
-                    const newIds = isActive
-                      ? intent.categories.filter(c => c.id !== unprodTag.id).map(c => c.id)
-                      : [...intent.categories.map(c => c.id), unprodTag.id];
+                    const isActive = optimisticCategories.some(c => c.id === unprodTag.id);
+                    const newCategories = isActive
+                      ? optimisticCategories.filter(c => c.id !== unprodTag.id)
+                      : [...optimisticCategories, unprodTag];
+                    setOptimisticCategories(newCategories); // Instant UI
+
+                    // Async DB Update
+                    const newIds = newCategories.map(c => c.id);
                     onUpdate(intent.id, { category_ids: newIds });
                   } else {
                     onCreateCategory('Unproductive').then(tag => {
@@ -256,7 +266,7 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
                     });
                   }
                 }}
-                className={`p-1 rounded hover:bg-white hover:shadow-sm text-xs ${intent.categories.some(c => c.name === 'Unproductive') ? 'text-red-600 bg-white shadow-sm' : 'text-gray-400'}`}
+                className={`p-1 rounded hover:bg-white hover:shadow-sm text-xs ${optimisticCategories.some(c => c.name === 'Unproductive') ? 'text-red-600 bg-white shadow-sm' : 'text-gray-400'}`}
                 title="Mark Unproductive (Red)"
               >
                 👎
