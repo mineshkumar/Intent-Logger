@@ -77,12 +77,34 @@ export function QuickCapture({ onSubmit, isLoading, categories = [] }: QuickCapt
 
     const finalTitle = cleanTitle || title;
 
-    await onSubmit({
+    // Default duration to 30 minutes if not detected
+    const finalDuration = detectedDuration || 30;
+
+    console.log('[QuickCapture] Submitting intent:', {
       title: finalTitle,
-      duration_minutes: detectedDuration,
-      status: 'planned',
-      category_ids: detectedCategoryIds.length > 0 ? detectedCategoryIds : undefined
+      detectedDuration,
+      finalDuration,
+      detectedCategoryIds
     });
+
+    // Snap current time to nearest 5 minutes
+    const now = new Date();
+    const minutes = now.getMinutes();
+    const snappedMinutes = Math.round(minutes / 5) * 5;
+    now.setMinutes(snappedMinutes);
+    now.setSeconds(0);
+    now.setMilliseconds(0);
+
+    const payload = {
+      title: finalTitle,
+      duration_minutes: finalDuration,
+      status: 'planned',
+      category_ids: detectedCategoryIds.length > 0 ? detectedCategoryIds : undefined,
+      created_at: now.toISOString()
+    };
+    console.log('[QuickCapture] Payload:', payload);
+
+    await onSubmit(payload as any);
 
     setTitle('');
     setDuration(null);

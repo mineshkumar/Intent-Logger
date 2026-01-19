@@ -70,6 +70,12 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
         duration?: number;
     } | null>(null);
 
+    // Ref to track draft state for event handlers (avoids stale closure)
+    const draftValuesRef = useRef<{
+        startTime?: Date;
+        duration?: number;
+    } | null>(null);
+
     // Initial drag/resize position
     const dragStartRef = useRef<{ y: number; originalDate: Date; originalDuration: number } | null>(null);
     const hasScrolledRef = useRef(false);
@@ -131,37 +137,67 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
         const deltaY = e.clientY - dragStartRef.current.y;
 
         // INVERTED LOGIC: Moving Mouse DOWN (positive deltaY) -> Time DECREASES.
-        const deltaMinutes = Math.round((-deltaY / pixelsPerMinute) / SNAP_MINUTES) * SNAP_MINUTES;
+        // We want to snap the *final* time, not just the delta.
+        // Raw change in minutes
+        const rawDeltaMinutes = (-deltaY / pixelsPerMinute);
 
         if (draggingId) {
-            const newDate = new Date(dragStartRef.current.originalDate.getTime() + deltaMinutes * 60000);
+            const originalTime = dragStartRef.current.originalDate.getTime();
+            const newRawTime = originalTime + rawDeltaMinutes * 60000;
+
+            // Snap the NEW time to nearest 5 minutes
+            const snappedTime = Math.round(newRawTime / (SNAP_MINUTES * 60000)) * (SNAP_MINUTES * 60000);
+            const newDate = new Date(snappedTime);
+
             setDraftState(prev => ({ ...prev, startTime: newDate }));
+            // Update ref for logic
+            draftValuesRef.current = { ...draftValuesRef.current, startTime: newDate };
         }
 
         if (resizingId) {
-            // Dragging TOP handle UP (negative deltaY, positive deltaMinutes) -> Increases Duration (Later End Time)
+            // Dragging TOP handle UP (negative deltaY) -> Increases Duration (Later End Time)
+            // Resize logic: (change in minutes) + original duration
+            const deltaMinutes = Math.round(rawDeltaMinutes / SNAP_MINUTES) * SNAP_MINUTES;
             const newDuration = Math.max(SNAP_MINUTES, dragStartRef.current.originalDuration + deltaMinutes);
+
+            // Note: Since we drag the top handle, changing duration actually changes the End Time in a descending timeline?
+            // Wait, in Descending (Top=Future, Bottom=Past):
+            // The card is anchored at `top` (EndTime). 
+            // `top` = (MINUTES_IN_DAY - endTimeMinutes) * Scale.
+            // StartTime is at `bottom` of card. 
+            // In the previous logic:
+            // Intent: { created_at: StartTime, duration }
+            // If I pull the top handle UP (negative deltaY), I am moving to a LATER time (closer to 24:00).
+            // So `endTime` increases. Duration increases. StartTime stays same?
+            // "Resize Handle - AT TOP for Descending".
+            // Yes. Top = EndTime. Dragging Up = Later EndTime = Longer Duration.
+
             setDraftState(prev => ({ ...prev, duration: newDuration }));
+            // Update ref for logic
+            draftValuesRef.current = { ...draftValuesRef.current, duration: newDuration };
         }
     };
 
     const handleMouseUp = async () => {
         const targetId = draggingId || resizingId;
+        const finalValues = draftValuesRef.current;
 
-        if (targetId && draftState) {
+        if (targetId && finalValues) {
             const update: IntentUpdate = {};
-            if (draggingId && draftState.startTime) {
-                update.created_at = draftState.startTime.toISOString();
+            if (draggingId && finalValues.startTime) {
+                update.created_at = finalValues.startTime.toISOString();
             }
-            if (resizingId && draftState.duration) {
-                update.duration_minutes = draftState.duration;
+            if (resizingId && finalValues.duration) {
+                update.duration_minutes = finalValues.duration;
             }
-            await onUpdate(targetId, update);
+            // Fire and forget update
+            onUpdate(targetId, update);
         }
 
         setDraggingId(null);
         setResizingId(null);
         setDraftState(null);
+        draftValuesRef.current = null;
         dragStartRef.current = null;
     };
 
@@ -189,7 +225,10 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
             originalDate: new Date(intent.created_at),
             originalDuration: intent.duration_minutes || 15
         };
-        setDraftState({ startTime: new Date(intent.created_at) });
+        // Initialize draft state and ref
+        const initialDate = new Date(intent.created_at);
+        setDraftState({ startTime: initialDate });
+        draftValuesRef.current = { startTime: initialDate };
     };
 
     const startResize = (e: React.MouseEvent, intent: IntentWithTags) => {
@@ -201,7 +240,10 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
             originalDate: new Date(intent.created_at),
             originalDuration: intent.duration_minutes || 15
         };
-        setDraftState({ duration: intent.duration_minutes || 15 });
+        // Initialize draft state and ref
+        const initialDuration = intent.duration_minutes || 15;
+        setDraftState({ duration: initialDuration });
+        draftValuesRef.current = { duration: initialDuration };
     };
 
     return (
@@ -309,16 +351,27 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
 
                                 {/* Content - Force to bottom with absolute positioning */}
                                 <div className="absolute bottom-0 left-0 right-0 px-2 py-1 pointer-events-none">
-                                    <div className="min-w-0">
-                                        <div className="font-semibold text-gray-900 truncate leading-tight">
-                                            {intent.title}
-                                        </div>
-                                        {/* Hide time if too short for readability in Fit mode */}
-                                        {height > (isZoomed ? 30 : 15) && (
-                                            <div className="text-[10px] text-gray-500 font-mono leading-tight">
-                                                {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    <div className="min-w-0 relative">
+                                        {height < 30 ? (
+                                            /* Pop-out Title for Small Intents */
+                                            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-white/90 backdrop-blur-sm border border-gray-100 shadow-sm rounded-md px-2 py-0.5 whitespace-nowrap z-50">
+                                                <div className="font-semibold text-gray-900 text-xs">
+                                                    {intent.title} <span className="text-gray-400 font-normal">({duration}m)</span>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            /* Normal Title for Large Intents */
+                                            <div className="font-semibold text-gray-900 truncate leading-tight">
+                                                {intent.title}
                                             </div>
                                         )}
+
+                                        {/* Hide time inside if too short, it's shown in pop-out if small */
+                                            height > (isZoomed ? 30 : 15) && height >= 30 && (
+                                                <div className="text-[10px] text-gray-500 font-mono leading-tight">
+                                                    {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            )}
                                     </div>
                                 </div>
                             </div>
