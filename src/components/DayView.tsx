@@ -251,6 +251,13 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
         draftValuesRef.current = { duration: initialDuration };
     };
 
+    const timeZones = [
+        { name: 'Night', start: 0, end: 6, color: 'bg-slate-50/50' },
+        { name: 'Morning', start: 6, end: 12, color: 'bg-orange-50/50' },
+        { name: 'Afternoon', start: 12, end: 18, color: 'bg-blue-50/50' },
+        { name: 'Evening', start: 18, end: 24, color: 'bg-indigo-50/50' },
+    ];
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 sticky top-4 h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
             <div className="px-6 pt-4 pb-2 bg-white z-20 flex-shrink-0 flex justify-between items-center">
@@ -281,24 +288,53 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                 <div
                     style={{
                         height: MINUTES_IN_DAY * pixelsPerMinute,
-                        backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
-                        backgroundSize: '20px 20px',
-                        backgroundPosition: '0 0'
+                        // Clean grid: removed radial-gradient
                     }}
                     className="relative w-full"
                 >
+                    {/* Time Zones (Background) */}
+                    {timeZones.map(zone => {
+                        // Descending: 24 at top, 0 at bottom.
+                        // Zone Start (e.g. 6) is closer to bottom than End (12).
+                        // Top = (24 - zone.end) * 60 * pixelsPerMinute;
+                        // Height = (zone.end - zone.start) * 60 * pixelsPerMinute;
+                        const top = (MINUTES_IN_DAY - (zone.end * 60)) * pixelsPerMinute;
+                        const height = (zone.end - zone.start) * 60 * pixelsPerMinute;
+
+                        return (
+                            <div
+                                key={zone.name}
+                                className={`absolute w-full left-0 right-0 ${zone.color} flex justify-end items-start pr-4 pt-2`}
+                                style={{ top, height }}
+                            >
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-black/5 writing-mode-vertical">
+                                    {zone.name}
+                                </span>
+                            </div>
+                        );
+                    })}
+
                     {/* Background Grid - Descending: 24 (Top) -> 00 (Bottom) */}
                     {Array.from({ length: 25 }).map((_, i) => {
                         const hour = 24 - i; // 24, 23, ... 0
+
+                        // Smart labels: 12h format
+                        let label = `${hour}`;
+                        if (hour === 0 || hour === 24) label = '12';
+                        else if (hour > 12) label = `${hour - 12}`;
+
+                        // Hide 24/0 redundancy at edges if preferred, but usually 12 is fine.
+                        // User wants "11" instead of "11:00". "1" instead of "13:00".
+
                         return (
                             <div
                                 key={hour}
-                                className="absolute w-full border-t border-gray-100 flex items-center"
+                                className="absolute w-full border-t border-gray-100/50 flex items-center"
                                 style={{ top: i * 60 * pixelsPerMinute, height: 60 * pixelsPerMinute }}
                             >
-                                <span className="text-xs text-gray-400/60 font-mono ml-4 -mt-[calc(60*var(--ppm))] transform -translate-y-1/2 select-none"
+                                <span className="text-xs font-semibold text-gray-300 ml-4 -mt-[calc(60*var(--ppm))] transform -translate-y-1/2 select-none w-6 text-center"
                                     style={{ '--ppm': pixelsPerMinute } as React.CSSProperties}>
-                                    {hour === 24 ? '00:00 (Next)' : `${hour.toString().padStart(2, '0')}:00`}
+                                    {label}
                                 </span>
                             </div>
                         );
@@ -307,10 +343,15 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                     {/* Current Time Indicator */}
                     {now && (
                         <div
-                            className="absolute w-full border-t-2 border-red-400 z-[60] pointer-events-none flex items-center shadow-[0_0_8px_rgba(248,113,113,0.6)] transition-all duration-1000 ease-linear"
+                            className="absolute w-full border-t-2 border-red-400 z-[60] flex items-center shadow-[0_0_8px_rgba(248,113,113,0.6)] transition-all duration-1000 ease-linear group"
                             style={{ top: getTopFromTime(now) }}
                         >
                             <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1.5 border-2 border-white shadow-sm" />
+
+                            {/* Hover Tooltip for Time */}
+                            <div className="absolute left-4 -top-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                                {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                            </div>
                         </div>
                     )}
 
