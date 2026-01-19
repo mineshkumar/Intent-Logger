@@ -97,8 +97,11 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
   const primaryCategory = intent.categories?.[0];
   const primaryCategoryName = primaryCategory?.name;
 
-  // New Logic: Red/Green based on name productivity
-  const productivity = primaryCategoryName ? isProductive(primaryCategoryName) : null;
+  // New Logic: Red/Green based on name productivity OR tags
+  const hasProductiveTag = intent.categories?.some(c => c.name === 'Productive');
+  const hasUnproductiveTag = intent.categories?.some(c => c.name === 'Unproductive');
+
+  const productivity = hasProductiveTag ? true : (hasUnproductiveTag ? false : (primaryCategoryName ? isProductive(primaryCategoryName) : null));
 
   let backgroundColor = '#ffffff';
   let borderColor = '#f3f4f6';
@@ -203,7 +206,7 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
           </div>
 
           {/* Tags Row */}
-          <div className="scale-95 origin-left">
+          <div className="scale-95 origin-left flex items-center gap-2">
             <TagInput
               categories={categories}
               tagCategories={tagCategories}
@@ -211,6 +214,54 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
               onChange={(ids) => onUpdate(intent.id, { category_ids: ids })}
               onCreate={onCreateCategory}
             />
+            {/* Manual Color / Productivity Toggle */}
+            <div className="flex bg-gray-100 rounded-md p-0.5 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Find 'Productive' tag
+                  const prodTag = categories.find(c => c.name === 'Productive');
+                  if (prodTag) {
+                    const isActive = intent.categories.some(c => c.id === prodTag.id);
+                    const newIds = isActive
+                      ? intent.categories.filter(c => c.id !== prodTag.id).map(c => c.id)
+                      : [...intent.categories.map(c => c.id), prodTag.id];
+                    onUpdate(intent.id, { category_ids: newIds });
+                  } else {
+                    // Create it?
+                    onCreateCategory('Productive').then(tag => {
+                      if (tag) onUpdate(intent.id, { category_ids: [...intent.categories.map(c => c.id), tag.id] });
+                    });
+                  }
+                }}
+                className={`p-1 rounded hover:bg-white hover:shadow-sm text-xs ${intent.categories.some(c => c.name === 'Productive') ? 'text-green-600 bg-white shadow-sm' : 'text-gray-400'}`}
+                title="Mark Productive (Green)"
+              >
+                👍
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Find 'Unproductive' tag
+                  const unprodTag = categories.find(c => c.name === 'Unproductive');
+                  if (unprodTag) {
+                    const isActive = intent.categories.some(c => c.id === unprodTag.id);
+                    const newIds = isActive
+                      ? intent.categories.filter(c => c.id !== unprodTag.id).map(c => c.id)
+                      : [...intent.categories.map(c => c.id), unprodTag.id];
+                    onUpdate(intent.id, { category_ids: newIds });
+                  } else {
+                    onCreateCategory('Unproductive').then(tag => {
+                      if (tag) onUpdate(intent.id, { category_ids: [...intent.categories.map(c => c.id), tag.id] });
+                    });
+                  }
+                }}
+                className={`p-1 rounded hover:bg-white hover:shadow-sm text-xs ${intent.categories.some(c => c.name === 'Unproductive') ? 'text-red-600 bg-white shadow-sm' : 'text-gray-400'}`}
+                title="Mark Unproductive (Red)"
+              >
+                👎
+              </button>
+            </div>
           </div>
         </div>
 

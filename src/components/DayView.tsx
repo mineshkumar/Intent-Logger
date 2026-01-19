@@ -63,6 +63,7 @@ function DailyPulse({ intents }: { intents: IntentWithTags[] }) {
 
 export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
+    const hasMovedRef = useRef(false);
     const [containerHeight, setContainerHeight] = useState(800);
     const [isZoomed, setIsZoomed] = useState(false);
     const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -141,6 +142,11 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
 
         const deltaY = e.clientY - dragStartRef.current.y;
 
+        // Track if moved significantly to prevent click
+        if (Math.abs(deltaY) > 2) {
+            hasMovedRef.current = true;
+        }
+
         // INVERTED LOGIC: Moving Mouse DOWN (positive deltaY) -> Time DECREASES.
         // We want to snap the *final* time, not just the delta.
         // Raw change in minutes
@@ -204,6 +210,11 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
         setDraftState(null);
         draftValuesRef.current = null;
         dragStartRef.current = null;
+
+        // Reset move tracker after a tick to allow click handler to check it
+        setTimeout(() => {
+            if (hasMovedRef.current) hasMovedRef.current = false;
+        }, 0);
     };
 
     useEffect(() => {
@@ -225,6 +236,7 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
         e.preventDefault();
         e.stopPropagation();
         setDraggingId(intent.id);
+        hasMovedRef.current = false;
         dragStartRef.current = {
             y: e.clientY,
             originalDate: new Date(intent.created_at),
@@ -240,6 +252,7 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
         e.preventDefault();
         e.stopPropagation();
         setResizingId(intent.id);
+        hasMovedRef.current = false;
         dragStartRef.current = {
             y: e.clientY,
             originalDate: new Date(intent.created_at),
@@ -252,10 +265,10 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
     };
 
     const timeZones = [
-        { name: 'Night', start: 0, end: 6, color: 'bg-slate-50/50' },
-        { name: 'Morning', start: 6, end: 12, color: 'bg-orange-50/50' },
-        { name: 'Afternoon', start: 12, end: 18, color: 'bg-blue-50/50' },
-        { name: 'Evening', start: 18, end: 24, color: 'bg-indigo-50/50' },
+        { name: 'Night', start: 0, end: 6, color: 'bg-[#F8FAFC]' }, // Slate-50 solid
+        { name: 'Morning', start: 6, end: 12, color: 'bg-[#FFF7ED]' }, // Orange-50 solid
+        { name: 'Afternoon', start: 12, end: 18, color: 'bg-[#EFF6FF]' }, // Blue-50 solid
+        { name: 'Evening', start: 18, end: 24, color: 'bg-[#F5F3FF]' }, // Violet-50 solid
     ];
 
     return (
@@ -394,7 +407,7 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                                 }}
                                 onMouseDown={(e) => startDrag(e, intent)}
                                 onClick={() => {
-                                    if (!isDragging && !isResizing) onOpenPanel(intent);
+                                    if (!isDragging && !isResizing && !hasMovedRef.current) onOpenPanel(intent);
                                 }}
                             >
                                 {/* Resize Handle - AT TOP for Descending */}
