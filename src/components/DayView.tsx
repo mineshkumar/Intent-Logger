@@ -398,7 +398,9 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                                     } ${isActive ? 'ring-2 ring-indigo-400/50 shadow-md z-30' : ''}`}
                                 style={{
                                     top,
-                                    height: Math.max(height, isZoomed ? 20 : 10), // Smaller min height in Fit mode
+                                    // Google Style: Force min-height to ensure text is visible (approx 22px for 1 line)
+                                    // Visually it might overlap the next time slot, which is standard behavior
+                                    height: Math.max(height, 24),
                                     backgroundColor: isDragging ? '#fff' : `${primaryColor}15`,
                                     borderColor: isActive ? '#818cf8' : `${primaryColor}40`,
                                     borderLeftWidth: 4,
@@ -420,34 +422,20 @@ export function DayView({ intents, onOpenPanel, onUpdate }: DayViewProps) {
                                     </div>
                                 )}
 
-                                {/* Content - Force to bottom with absolute positioning */}
-                                <div className="absolute bottom-0 left-0 right-0 px-2 py-1 pointer-events-none">
-                                    <div className="min-w-0 relative">
-                                        {height < 30 ? (
-                                            /* Lollipop Label for Small Intents */
-                                            <div className="absolute left-full top-1/2 -translate-y-1/2 flex items-center z-50 pointer-events-none">
-                                                {/* Leader Line */}
-                                                <div className="w-4 h-px bg-gray-300 mr-1" />
-                                                {/* Label */}
-                                                <div className="bg-white/90 backdrop-blur-sm border border-gray-100 shadow-sm rounded-md px-2 py-0.5 whitespace-nowrap">
-                                                    <div className="font-semibold text-gray-900 text-xs">
-                                                        {intent.title} <span className="text-gray-400 font-normal">({duration}m)</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            /* Normal Title for Large Intents */
-                                            <div className="font-semibold text-gray-900 truncate leading-tight">
+                                {/* Content - Google Style: Always inside */}
+                                <div className="absolute top-0 bottom-0 left-0 right-0 px-2 flex items-center pointer-events-none">
+                                    <div className="min-w-0 w-full">
+                                        <div className="flex items-baseline gap-1.5">
+                                            {/* Title */}
+                                            <span className="font-semibold text-gray-900 truncate leading-tight block">
                                                 {intent.title}
-                                            </div>
-                                        )}
+                                            </span>
 
-                                        {/* Hide time inside if too short, it's shown in pop-out if small */
-                                            height > (isZoomed ? 30 : 15) && height >= 30 && (
-                                                <div className="text-[10px] text-gray-500 font-mono leading-tight">
-                                                    {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </div>
-                                            )}
+                                            {/* Duration (only if space permits width-wise, or effectively just secondary text) */}
+                                            <span className="text-[10px] text-gray-500 font-normal whitespace-nowrap">
+                                                {duration}m
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
