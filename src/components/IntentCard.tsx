@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { TagInput } from './TagInput';
-import { DurationInput, formatDurationShort } from './DurationInput';
+import { DurationInput } from './DurationInput';
 import type { Tag, TagCategory, TagWithCategory, IntentWithTags, IntentUpdate } from '@/types/database';
 import { isProductive } from '@/lib/colors';
 
@@ -27,6 +27,13 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(intent.title);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Optimistic UI state for categories to ensure instant feedback (unshakable)
+  const [optimisticCategories, setOptimisticCategories] = useState<TagWithCategory[]>(intent.categories);
+
+  useEffect(() => {
+    setOptimisticCategories(intent.categories);
+  }, [intent.categories]);
 
   const status = intent.status || 'planned';
   const statusConfig = STATUS_CONFIG[status];
@@ -86,20 +93,12 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
     await onUpdate(intent.id, { duration_minutes: minutes });
   };
 
-  // Helper to add opacity to hex color
-  const getBackgroundTint = (color: string) => {
-    if (color.startsWith('#') && color.length === 7) {
-      return `${color}10`; // approx 6% opacity
-    }
-    return undefined;
-  };
-
   const primaryCategory = intent.categories?.[0];
   const primaryCategoryName = primaryCategory?.name;
 
-  // New Logic: Red/Green based on name productivity OR tags
-  const hasProductiveTag = intent.categories?.some(c => c.name === 'Productive');
-  const hasUnproductiveTag = intent.categories?.some(c => c.name === 'Unproductive');
+  // New Logic: Red/Green based on name productivity OR tags (using optimistic state)
+  const hasProductiveTag = optimisticCategories?.some(c => c.name === 'Productive');
+  const hasUnproductiveTag = optimisticCategories?.some(c => c.name === 'Unproductive');
 
   const productivity = hasProductiveTag ? true : (hasUnproductiveTag ? false : (primaryCategoryName ? isProductive(primaryCategoryName) : null));
 
@@ -118,9 +117,7 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
     backgroundColor = '#fef2f2'; // red-50
     borderColor = '#fecaca'; // red-200
   } else if (primaryCategory) {
-    // Fallback? Or just use Neutral if user said "ONLY red/green"?
-    // User said "not color from tag".
-    // Let's default to neutral white/gray if not mapped.
+    // Fallback if not mapped
     backgroundColor = '#ffffff';
     borderColor = '#e5e7eb';
   }
@@ -226,17 +223,15 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
                     const newCategories = isActive
                       ? optimisticCategories.filter(c => c.id !== prodTag.id)
                       : [...optimisticCategories, prodTag];
-                    setOptimisticCategories(newCategories); // Instant UI
+                    setOptimisticCategories(newCategories); // Instant UI Update
 
                     // Async DB Update
                     const newIds = newCategories.map(c => c.id);
                     onUpdate(intent.id, { category_ids: newIds });
                   } else {
+                    // Create it?
                     onCreateCategory('Productive').then(tag => {
-                      if (tag) {
-                        // Update Optimistic? Too complex/late. Just update DB.
-                        onUpdate(intent.id, { category_ids: [...intent.categories.map(c => c.id), tag.id] });
-                      }
+                      if (tag) onUpdate(intent.id, { category_ids: [...intent.categories.map(c => c.id), tag.id] });
                     });
                   }
                 }}
@@ -248,14 +243,14 @@ export function IntentCard({ intent, categories, tagCategories, onUpdate, onOpen
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Optimistic Update
+                  // Find 'Unproductive' tag
                   const unprodTag = categories.find(c => c.name === 'Unproductive');
                   if (unprodTag) {
                     const isActive = optimisticCategories.some(c => c.id === unprodTag.id);
                     const newCategories = isActive
                       ? optimisticCategories.filter(c => c.id !== unprodTag.id)
                       : [...optimisticCategories, unprodTag];
-                    setOptimisticCategories(newCategories); // Instant UI
+                    setOptimisticCategories(newCategories); // Instant UI Update
 
                     // Async DB Update
                     const newIds = newCategories.map(c => c.id);
